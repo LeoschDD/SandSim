@@ -4,7 +4,6 @@
 #include "imgui.h"
 #include "rlImGui.h"
 
-#include <iostream>
 #include <vector>
 #include <cstdint>
 #include <string>
@@ -16,10 +15,47 @@ enum class Cell : uint8_t
     WATER = 2,
     OIL = 3,
     ROCK = 4,
-    FIRE = 5
+    FIRE = 5,
+    STEAM = 6,
+    LAVA = 7,
+    OBSIDIAN = 8
 
-    // to add: steam, glass, lava, obsidian
+    // to add: glass
 };
+
+std::string cellToString(Cell cell)
+{
+    switch (cell)
+    {
+    case Cell::AIR: return "Air";
+    case Cell::SAND: return "Sand";
+    case Cell::WATER: return "Water";
+    case Cell::OIL: return "Oil";
+    case Cell::ROCK: return "Rock";
+    case Cell::FIRE: return "Fire";
+    case Cell::STEAM: return "Steam";
+    case Cell::LAVA: return "Lava";
+    case Cell::OBSIDIAN: return "Obsidian";
+    default: return "";
+    }
+}
+
+Color getCellColor(Cell cell)
+{
+    switch (cell)
+    {
+    case Cell::AIR: return BLANK;
+    case Cell::SAND: return YELLOW;
+    case Cell::WATER: return BLUE;
+    case Cell::OIL: return BLACK;
+    case Cell::ROCK: return GRAY;
+    case Cell::FIRE: return RED;
+    case Cell::STEAM: return WHITE;
+    case Cell::LAVA: return ORANGE;
+    case Cell::OBSIDIAN: return DARKPURPLE;
+    default: return BLANK;
+    }
+}
 
 class Grid
 {
@@ -49,9 +85,11 @@ public:
     {
         Vector2 mousePos = GetMousePosition();
 
-        for (int x = (int)mouseCell(mousePos).x - spawnRadius; x < (int)mouseCell(mousePos).x + spawnRadius; ++x)
+        for (int x = (int)mouseCell(mousePos).x - spawnRadius; 
+             x < (int)mouseCell(mousePos).x + spawnRadius; ++x)
         {
-            for (int y = (int)mouseCell(mousePos).y - spawnRadius; y < (int)mouseCell(mousePos).y + spawnRadius; ++y)
+            for (int y = (int)mouseCell(mousePos).y - spawnRadius;
+                 y < (int)mouseCell(mousePos).y + spawnRadius; ++y)
             {
                 if (canMove(selected, x, y)) m_Cells[getKey(x, y)] = selected;
             }
@@ -80,6 +118,12 @@ public:
                 case Cell::FIRE:
                     updateFire(x, y);
                     break;
+                case Cell::STEAM:
+                    updateSteam(x, y);
+                    break;
+                case Cell::LAVA:
+                    updateLava(x, y);
+                    break;
                 default:
                     break;
                 }
@@ -95,25 +139,10 @@ public:
         {
             for (int y = 0; y < m_Rows; ++y)
             {
-                switch (m_Cells[getKey(x, y)])
+                if (m_Cells[getKey(x, y)] != Cell::AIR) 
                 {
-                case Cell::SAND:
-                    DrawRectangle(x * m_CellSize, y * m_CellSize, m_CellSize, m_CellSize, YELLOW);
-                    break;
-                case Cell::WATER:
-                    DrawRectangle(x * m_CellSize, y * m_CellSize, m_CellSize, m_CellSize, BLUE);
-                    break;
-                case Cell::ROCK:
-                    DrawRectangle(x * m_CellSize, y * m_CellSize, m_CellSize, m_CellSize, GRAY);
-                    break;
-                case Cell::OIL:
-                    DrawRectangle(x * m_CellSize, y * m_CellSize, m_CellSize, m_CellSize, BLACK);
-                    break;
-                case Cell::FIRE:
-                    DrawRectangle(x * m_CellSize, y * m_CellSize, m_CellSize, m_CellSize, ORANGE);
-                    break;
-                default:
-                    break;                        
+                    DrawRectangle(x * m_CellSize, y * m_CellSize, m_CellSize,
+                                  m_CellSize, getCellColor(m_Cells[getKey(x, y)]));
                 }
             }
         }
@@ -289,27 +318,192 @@ private:
 
     void updateFire(int x, int y)
     {
-        int fireSpread = 100;
+        int fireSpread = 20;
 
         int dir = ((rand() % 2) == 0) ? 1 : -1;
 
-        if (canMove(Cell::FIRE, x + dir, y))
+        if (m_Cells[getKey(x + dir, y)] == Cell::OIL)
         {
             if (rand() % fireSpread) m_Next[getKey(x + dir, y)] = Cell::FIRE;
         }
-        else if (canMove(Cell::FIRE, x - dir, y))
+        else if (m_Cells[getKey(x - dir, y)] == Cell::OIL)
         {
             if (rand() % fireSpread) m_Next[getKey(x - dir, y)] = Cell::FIRE;
         }
-        else if (canMove(Cell::FIRE, x, y + dir))
+        else if (m_Cells[getKey(x, y + dir)] == Cell::OIL)
         {
             if (rand() % fireSpread) m_Next[getKey(x, y + dir)] = Cell::FIRE;
         }
-        else if (canMove(Cell::FIRE, x, y - dir))
+        else if (m_Cells[getKey(x, y - dir)] == Cell::OIL)
         {
             if (rand() % fireSpread) m_Next[getKey(x, y - dir)] = Cell::FIRE;
         }
-        else m_Next[getKey(x, y)] = Cell::AIR;
+        else if (m_Cells[getKey(x + dir, y)] == Cell::WATER)
+        {
+            m_Next[getKey(x + dir, y)] = Cell::STEAM;
+            m_Next[getKey(x, y)] = Cell::AIR;
+        }
+        else if (m_Cells[getKey(x - dir, y)] == Cell::WATER)
+        {
+            m_Next[getKey(x - dir, y)] = Cell::STEAM;
+            m_Next[getKey(x, y)] = Cell::AIR;
+        }
+        else if (m_Cells[getKey(x, y + dir)] == Cell::WATER)
+        {
+            m_Next[getKey(x, y + dir)] = Cell::STEAM;
+            m_Next[getKey(x, y)] = Cell::AIR;
+        }
+        else if (m_Cells[getKey(x, y - dir)] == Cell::WATER)
+        {
+            m_Next[getKey(x, y - dir)] = Cell::STEAM;
+            m_Next[getKey(x, y)] = Cell::AIR;
+        }
+        else if (rand() % 5 == 0) m_Next[getKey(x, y)] = Cell::AIR;
+    }
+
+    void updateSteam(int x, int y)
+    {
+        int steamSpeed = (int)roundf(m_CellSpeed * 0.5);
+        if (steamSpeed < 1) steamSpeed = 1;
+
+        int dir = ((rand() % 2) == 0) ? 1 : -1;
+
+        int newX = x;
+        int newY = y;
+
+        if (canMove(Cell::STEAM, x, y - 1))
+        {
+            newY = y - 1;
+        }
+        else if (canMove(Cell::STEAM, x + dir, y - 1))
+        {
+            for (int i = 1; i <= steamSpeed; ++i)
+            {
+                if (canMove(Cell::STEAM, x + i * dir, y - i))
+                {
+                    newY = y - i;
+                    newX = x + i * dir;
+                }
+                else break;
+            } 
+        }
+        else if (canMove(Cell::STEAM, x - dir, y - 1))
+        {
+            for (int i = 1; i <= steamSpeed; ++i)
+            {
+                if (canMove(Cell::STEAM, x - i * dir, y - i))
+                {
+                    newY = y - i;
+                    newX = x - i * dir;
+                }
+                else break;
+            } 
+        }
+        else if (canMove(Cell::STEAM, x + dir, y))
+        {
+            for (int i = 1; i <= steamSpeed; ++i)
+            {
+                if (canMove(Cell::STEAM, x + i * dir, y))
+                {
+                    newX = x + i * dir;
+                }
+                else break;
+            } 
+        }
+        else if (canMove(Cell::WATER, x - dir, y))
+        {
+            for (int i = 1; i <= steamSpeed; ++i)
+            {
+                if (canMove(Cell::WATER, x - i * dir, y))
+                {
+                    newX = x - i * dir;
+                }
+                else break;
+            } 
+        }
+
+        if (rand() % 10000 == 0) m_Next[getKey(x, y)] = Cell::WATER;
+
+        move(x, y, newX, newY); 
+    }
+
+    void updateLava(int x, int y)
+    {
+        int dir = ((rand() % 2) == 0) ? 1 : -1;
+
+        int newX = x;
+        int newY = y;
+
+
+        if (m_Cells[getKey(x + dir, y)] == Cell::WATER)
+        {
+            m_Next[getKey(x + dir, y)] = Cell::OBSIDIAN;
+        }
+        else if (m_Cells[getKey(x - dir, y)] == Cell::WATER)
+        {
+            m_Next[getKey(x - dir, y)] = Cell::OBSIDIAN;
+        }
+        else if (m_Cells[getKey(x, y + dir)] == Cell::WATER)
+        {
+            m_Next[getKey(x, y + dir)] = Cell::OBSIDIAN;
+        }
+        else if (m_Cells[getKey(x, y - dir)] == Cell::WATER)
+        {
+            m_Next[getKey(x, y - dir)] = Cell::OBSIDIAN;
+        }
+        else if (m_Cells[getKey(x + dir, y)] == Cell::OIL)
+        {
+            m_Next[getKey(x + dir, y)] = Cell::FIRE;
+        }
+        else if (m_Cells[getKey(x - dir, y)] == Cell::OIL)
+        {
+            m_Next[getKey(x - dir, y)] = Cell::FIRE;
+        }
+        else if (m_Cells[getKey(x, y + dir)] == Cell::OIL)
+        {
+            m_Next[getKey(x, y + dir)] = Cell::FIRE;
+        }
+        else if (m_Cells[getKey(x, y - dir)] == Cell::OIL)
+        {
+            m_Next[getKey(x, y - dir)] = Cell::FIRE;
+        }
+        else if (canMove(Cell::LAVA, x, y + 1))
+        {
+            for (int i = 1; i <= m_CellSpeed; ++i)
+            {
+                if (canMove(Cell::LAVA, x, y + i))
+                {
+                    newY = y + i;
+                }
+                else break;
+            }  
+        }
+        else if (canMove(Cell::LAVA, x + dir, y + 1))
+        {
+            if (rand() % 3 == 0)
+            {
+                newY = y + 1;
+                newX = x + dir;
+            }
+        }
+        else if (canMove(Cell::LAVA, x - dir, y + 1))
+        {
+            if (rand() % 3 == 0)
+            {
+                newY = y + 1;
+                newX = x - dir;
+            }
+        }
+        else if (canMove(Cell::WATER, x + dir, y))
+        {
+            if (rand() % 3 == 0) newX = x + dir;
+        }
+        else if (canMove(Cell::WATER, x - dir, y))
+        {
+            if (rand() % 3 == 0) newX = x - dir;
+        }
+
+        move(x, y, newX, newY);        
     }
 
     void move(int x, int y, int nextX, int nextY)
@@ -351,29 +545,28 @@ private:
 
         if (cell == Cell::OIL) return m_Next[getKey(x, y)] == Cell::AIR;
 
-        if (cell == Cell::ROCK) return true;
+        if (cell == Cell::ROCK) return true;        
 
-        if (cell == Cell::FIRE) return m_Next[getKey(x, y)] == Cell::OIL;
+        if (cell == Cell::FIRE) return m_Next[getKey(x, y)] == Cell::OIL ||
+                                       m_Next[getKey(x, y)] == Cell::WATER ||
+                                       m_Next[getKey(x, y)] == Cell::AIR;
+
+        if (cell == Cell::STEAM) return m_Next[getKey(x, y)] == Cell::AIR ||
+                                        m_Next[getKey(x, y)] == Cell::WATER ||
+                                        m_Next[getKey(x, y)] == Cell::OIL;
+
+        if (cell == Cell::LAVA) return m_Next[getKey(x, y)] == Cell::AIR || 
+                                       m_Next[getKey(x, y)] == Cell::OIL ||
+                                       m_Next[getKey(x, y)] == Cell::FIRE ||
+                                       m_Next[getKey(x, y)] == Cell::WATER;
+
+        if (cell == Cell::OBSIDIAN) return true;
 
         return false;
     }
 
     int getKey(int x, int y) {return y * m_Cols + x;}
 };
-
-std::string cellToString(Cell cell)
-{
-    switch (cell)
-    {
-    case Cell::AIR: return "Air";
-    case Cell::SAND: return "Sand";
-    case Cell::WATER: return "Water";
-    case Cell::OIL: return "Oil";
-    case Cell::ROCK: return "Rock";
-    case Cell::FIRE: return "Fire";
-    default: return "";
-    }
-}
 
 int main(int argc, char* argv[])
 {
@@ -389,14 +582,15 @@ int main(int argc, char* argv[])
 
     // setup grid
 
-    const int cellSize = 2;
+    const int cellSize = 3;
     const int cols = ceilf((float)screenWidth / (float)cellSize);
     const int rows = ceilf((float)screenHeight / (float)cellSize);
-    const int cellSpeed = 6;
+    const int cellSpeed = 5;
     Grid grid(cols, rows, cellSize, cellSpeed);
 
     std::vector<Cell> cellOptions = {Cell::AIR, Cell::SAND, Cell::WATER, 
-                                     Cell::OIL, Cell::ROCK, Cell::FIRE};
+                                     Cell::OIL, Cell::ROCK, Cell::FIRE,
+                                     Cell::STEAM, Cell::LAVA, Cell::OBSIDIAN};
     size_t cellSelected = 1;
     int spawnRadius = 2;
 
@@ -418,6 +612,8 @@ int main(int argc, char* argv[])
         ClearBackground(SKYBLUE);
 
         grid.render();
+
+        // render gui
 
         rlImGuiBegin();
 
@@ -451,7 +647,7 @@ int main(int argc, char* argv[])
         rlImGuiEnd();
 
         EndDrawing();
-    } 
+    }
 
     rlImGuiShutdown();
     CloseWindow();
