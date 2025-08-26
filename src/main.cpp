@@ -18,9 +18,8 @@ enum class Cell : uint8_t
     FIRE = 5,
     STEAM = 6,
     LAVA = 7,
-    OBSIDIAN = 8
-
-    // to add: glass
+    OBSIDIAN = 8,
+    GLASS = 9
 };
 
 std::string cellToString(Cell cell)
@@ -36,6 +35,7 @@ std::string cellToString(Cell cell)
     case Cell::STEAM: return "Steam";
     case Cell::LAVA: return "Lava";
     case Cell::OBSIDIAN: return "Obsidian";
+    case Cell::GLASS: return "Glass";
     default: return "";
     }
 }
@@ -53,6 +53,7 @@ Color getCellColor(Cell cell)
     case Cell::STEAM: return WHITE;
     case Cell::LAVA: return ORANGE;
     case Cell::OBSIDIAN: return DARKPURPLE;
+    case Cell::GLASS: return {100, 150, 200, 120};
     default: return BLANK;
     }
 }
@@ -77,6 +78,7 @@ public:
         m_CellSpeed = cellSpeed;
 
         m_Cells = std::vector<Cell> (m_Cols * m_Rows, Cell::AIR);
+        m_Next = std::vector<Cell> (m_Cols * m_Rows, Cell::AIR);
     }
 
     ~Grid() = default;
@@ -98,12 +100,14 @@ public:
 
     void update()
     {
-        m_Next = m_Cells;
+        m_Next.assign(m_Cells.begin(), m_Cells.end());
 
         for (int x = 0; x < m_Cols; ++x)
         {
             for (int y = 0; y < m_Rows; ++y)
-            { 
+            {   
+                if (m_Cells[getKey(x, y)] == Cell::AIR) continue;
+
                 switch (m_Cells[getKey(x, y)])
                 {
                 case Cell::SAND:
@@ -130,7 +134,7 @@ public:
             }
         }   
 
-        m_Cells = m_Next;
+        m_Cells.assign(m_Next.begin(), m_Next.end());
     }
 
     void render()
@@ -324,19 +328,19 @@ private:
 
         if (m_Cells[getKey(x + dir, y)] == Cell::OIL)
         {
-            if (rand() % fireSpread) m_Next[getKey(x + dir, y)] = Cell::FIRE;
+            if (rand() % fireSpread == 0) m_Next[getKey(x + dir, y)] = Cell::FIRE;
         }
         else if (m_Cells[getKey(x - dir, y)] == Cell::OIL)
         {
-            if (rand() % fireSpread) m_Next[getKey(x - dir, y)] = Cell::FIRE;
+            if (rand() % fireSpread == 0) m_Next[getKey(x - dir, y)] = Cell::FIRE;
         }
         else if (m_Cells[getKey(x, y + dir)] == Cell::OIL)
         {
-            if (rand() % fireSpread) m_Next[getKey(x, y + dir)] = Cell::FIRE;
+            if (rand() % fireSpread == 0) m_Next[getKey(x, y + dir)] = Cell::FIRE;
         }
         else if (m_Cells[getKey(x, y - dir)] == Cell::OIL)
         {
-            if (rand() % fireSpread) m_Next[getKey(x, y - dir)] = Cell::FIRE;
+            if (rand() % fireSpread == 0) m_Next[getKey(x, y - dir)] = Cell::FIRE;
         }
         else if (m_Cells[getKey(x + dir, y)] == Cell::WATER)
         {
@@ -356,6 +360,26 @@ private:
         else if (m_Cells[getKey(x, y - dir)] == Cell::WATER)
         {
             m_Next[getKey(x, y - dir)] = Cell::STEAM;
+            m_Next[getKey(x, y)] = Cell::AIR;
+        }
+        else if (m_Cells[getKey(x + dir, y)] == Cell::SAND)
+        {
+            m_Next[getKey(x + dir, y)] = Cell::GLASS;
+            m_Next[getKey(x, y)] = Cell::AIR;
+        }
+        else if (m_Cells[getKey(x - dir, y)] == Cell::SAND)
+        {
+            m_Next[getKey(x - dir, y)] = Cell::GLASS;
+            m_Next[getKey(x, y)] = Cell::AIR;
+        }
+        else if (m_Cells[getKey(x, y + dir)] == Cell::SAND)
+        {
+            m_Next[getKey(x, y + dir)] = Cell::GLASS;
+            m_Next[getKey(x, y)] = Cell::AIR;
+        }
+        else if (m_Cells[getKey(x, y - dir)] == Cell::SAND)
+        {
+            m_Next[getKey(x, y - dir)] = Cell::GLASS;
             m_Next[getKey(x, y)] = Cell::AIR;
         }
         else if (rand() % 5 == 0) m_Next[getKey(x, y)] = Cell::AIR;
@@ -410,11 +434,11 @@ private:
                 else break;
             } 
         }
-        else if (canMove(Cell::WATER, x - dir, y))
+        else if (canMove(Cell::STEAM, x - dir, y))
         {
             for (int i = 1; i <= steamSpeed; ++i)
             {
-                if (canMove(Cell::WATER, x - i * dir, y))
+                if (canMove(Cell::STEAM, x - i * dir, y))
                 {
                     newX = x - i * dir;
                 }
@@ -435,21 +459,21 @@ private:
         int newY = y;
 
 
-        if (m_Cells[getKey(x + dir, y)] == Cell::WATER)
-        {
-            m_Next[getKey(x + dir, y)] = Cell::OBSIDIAN;
-        }
-        else if (m_Cells[getKey(x - dir, y)] == Cell::WATER)
-        {
-            m_Next[getKey(x - dir, y)] = Cell::OBSIDIAN;
-        }
-        else if (m_Cells[getKey(x, y + dir)] == Cell::WATER)
+        if (m_Cells[getKey(x, y + dir)] == Cell::WATER)
         {
             m_Next[getKey(x, y + dir)] = Cell::OBSIDIAN;
         }
         else if (m_Cells[getKey(x, y - dir)] == Cell::WATER)
         {
             m_Next[getKey(x, y - dir)] = Cell::OBSIDIAN;
+        }
+        else if (m_Cells[getKey(x + dir, y)] == Cell::WATER)
+        {
+            m_Next[getKey(x + dir, y)] = Cell::OBSIDIAN;
+        }
+        else if (m_Cells[getKey(x - dir, y)] == Cell::WATER)
+        {
+            m_Next[getKey(x - dir, y)] = Cell::OBSIDIAN;
         }
         else if (m_Cells[getKey(x + dir, y)] == Cell::OIL)
         {
@@ -466,6 +490,22 @@ private:
         else if (m_Cells[getKey(x, y - dir)] == Cell::OIL)
         {
             m_Next[getKey(x, y - dir)] = Cell::FIRE;
+        }
+        else if (m_Cells[getKey(x + dir, y)] == Cell::SAND)
+        {
+            m_Next[getKey(x + dir, y)] = Cell::GLASS;
+        }
+        else if (m_Cells[getKey(x - dir, y)] == Cell::SAND)
+        {
+            m_Next[getKey(x - dir, y)] = Cell::GLASS;
+        }
+        else if (m_Cells[getKey(x, y + dir)] == Cell::SAND)
+        {
+            m_Next[getKey(x, y + dir)] = Cell::GLASS;
+        }
+        else if (m_Cells[getKey(x, y - dir)] == Cell::SAND)
+        {
+            m_Next[getKey(x, y - dir)] = Cell::GLASS;
         }
         else if (canMove(Cell::LAVA, x, y + 1))
         {
@@ -494,11 +534,11 @@ private:
                 newX = x - dir;
             }
         }
-        else if (canMove(Cell::WATER, x + dir, y))
+        else if (canMove(Cell::LAVA, x + dir, y))
         {
             if (rand() % 3 == 0) newX = x + dir;
         }
-        else if (canMove(Cell::WATER, x - dir, y))
+        else if (canMove(Cell::LAVA, x - dir, y))
         {
             if (rand() % 3 == 0) newX = x - dir;
         }
@@ -511,7 +551,7 @@ private:
         Cell movingCell = m_Next[getKey(x, y)];
         Cell nextCell = m_Next[getKey(nextX, nextY)];
 
-        if (nextCell == Cell::WATER || nextCell == Cell::OIL) 
+        if (nextCell == Cell::WATER || nextCell == Cell::OIL || nextCell == Cell::LAVA) 
         {
             m_Next[getKey(x, y)] = nextCell;
         }
@@ -537,7 +577,9 @@ private:
 
         if (cell == Cell::SAND) return m_Next[getKey(x, y)] == Cell::AIR || 
                                        m_Next[getKey(x, y)] == Cell::WATER ||
-                                       m_Next[getKey(x, y)] == Cell::FIRE;
+                                       m_Next[getKey(x, y)] == Cell::FIRE ||
+                                       m_Next[getKey(x, y)] == Cell::OIL ||
+                                       m_Next[getKey(x, y)] == Cell::LAVA;
 
         if (cell == Cell::WATER) return m_Next[getKey(x, y)] == Cell::AIR || 
                                         m_Next[getKey(x, y)] == Cell::OIL ||
@@ -553,7 +595,8 @@ private:
 
         if (cell == Cell::STEAM) return m_Next[getKey(x, y)] == Cell::AIR ||
                                         m_Next[getKey(x, y)] == Cell::WATER ||
-                                        m_Next[getKey(x, y)] == Cell::OIL;
+                                        m_Next[getKey(x, y)] == Cell::OIL ||
+                                        m_Next[getKey(x, y)] == Cell::LAVA;
 
         if (cell == Cell::LAVA) return m_Next[getKey(x, y)] == Cell::AIR || 
                                        m_Next[getKey(x, y)] == Cell::OIL ||
@@ -561,6 +604,8 @@ private:
                                        m_Next[getKey(x, y)] == Cell::WATER;
 
         if (cell == Cell::OBSIDIAN) return true;
+
+        if (cell == Cell::GLASS) return true;
 
         return false;
     }
@@ -590,7 +635,8 @@ int main(int argc, char* argv[])
 
     std::vector<Cell> cellOptions = {Cell::AIR, Cell::SAND, Cell::WATER, 
                                      Cell::OIL, Cell::ROCK, Cell::FIRE,
-                                     Cell::STEAM, Cell::LAVA, Cell::OBSIDIAN};
+                                     Cell::STEAM, Cell::LAVA, Cell::OBSIDIAN,
+                                     Cell::GLASS};
     size_t cellSelected = 1;
     int spawnRadius = 2;
 
